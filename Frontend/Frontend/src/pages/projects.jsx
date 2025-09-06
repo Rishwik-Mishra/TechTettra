@@ -68,7 +68,7 @@ const Projects = () => {
         <div>
           <div className="flex items-center space-x-2 mb-8">
             <div className="w-8 h-8 rounded-lg bg-gray-600"></div>
-            <span className="text-lg font-bold">Company</span>
+            <span className="text-lg font-bold">Synergy Sphere</span>
           </div>
           <nav className="space-y-4">
             <a href="#" className="flex items-center p-3 rounded-lg bg-gray-700 text-white font-semibold">
@@ -143,7 +143,9 @@ const Projects = () => {
               {/* Labels */}
               <div className="flex space-x-2 absolute top-4 right-4 z-10">
                 {task.labels.map((label, index) => (
-                  <span key={index} className="px-2 py-1 bg-gray-600 text-xs text-white rounded-full">{label}</span>
+                  <div>
+                    <span key={index} className="px-2 py-1 bg-gray-600 text-xs text-white rounded-full">{label}</span>
+                  </div>
                 ))}
               </div>
               <img src={task.image} alt="Task" className="w-full h-40 object-cover rounded-lg mb-4" />
@@ -154,13 +156,12 @@ const Projects = () => {
                 <div className="flex items-center space-x-1">
                   <img src={task.userAvatar} alt="User" className="w-8 h-8 rounded-full border-2 border-white" title={task.tooltip} />
                 </div>
+                <button onClick={() =>navigate('/project')}>Go to Project</button>
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      <ChartInterface/>
     </div>
   );
 };

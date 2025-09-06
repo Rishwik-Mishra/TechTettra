@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import ChartInterface from '../components/ChatInterface';
+import { useNavigate } from 'react-router-dom';
 
 // Main App component containing the entire dashboard
 const Project = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [currentPath, setCurrentPath] = useState(['Projects', 'RD Sales']);
+  const navigate = useNavigate();
 
   // Sample data for tasks
   const tasks = [
@@ -54,7 +56,7 @@ const Project = () => {
         <div>
           <div className="flex items-center space-x-2 mb-8">
             <div className="w-8 h-8 rounded-lg bg-gray-600"></div>
-            <span className="text-lg font-bold">Company</span>
+            <span className="text-lg font-bold">Synergy Sphere</span>
           </div>
           <nav className="space-y-4">
             <a href="#" className="flex items-center p-3 rounded-lg bg-gray-700 text-white font-semibold">
@@ -140,7 +142,9 @@ const Project = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
+              <button onClick={()=> navigate('/tasks/new')}>
               <span>New Task</span>
+              </button>
             </button>
           </div>
         </div>

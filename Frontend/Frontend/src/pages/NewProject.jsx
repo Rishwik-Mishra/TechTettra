@@ -78,7 +78,7 @@ const NewProject = () => {
         <div>
           <div className="flex items-center space-x-2 mb-8">
             <div className={`w-8 h-8 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
-            <span className="text-xl font-semibold">Company</span>
+            <span className="text-xl font-semibold">Synergy Sphere</span>
           </div>
           <nav className="space-y-4">
             <a href="#" className={`block p-2 rounded-lg ${isDarkMode ? 'bg-gray-700 text-gray-100' : 'bg-gray-200'}`}>Projects</a>

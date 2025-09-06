@@ -29,7 +29,7 @@ const Sidebar = ({ theme, toggleTheme }) => (
   <aside className={`w-64 p-4 space-y-4 flex flex-col ${theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
     <div className="flex items-center space-x-2">
       <input type="checkbox" className="form-checkbox h-4 w-4 text-blue-500 rounded border-gray-600 focus:ring-blue-500" />
-      <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Company</span>
+      <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Synergy Sphere</span>
     </div>
     <nav className="space-y-2 font-medium text-lg">
       <a href="#" className={`block p-2 rounded-lg ${theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'} transition-colors`}>Projects</a>
