@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import ChartInterface from '../components/ChatInterface';
 
 // Main App component containing the entire dashboard
-const App = () => {
+const Project = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [currentPath, setCurrentPath] = useState(['Projects', 'RD Sales']);
 
@@ -185,8 +186,9 @@ const App = () => {
           ))}
         </div>
       </div>
+      <ChartInterface/>
     </div>
   );
 };
 
-export default App;
+export default Project ;
