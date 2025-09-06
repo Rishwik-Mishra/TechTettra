@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import ChartInterface from '../components/ChatInterface';
+import { useNavigate } from 'react-router-dom';
+
 
 // Main App component containing the entire dashboard
 const Projects = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [currentPath, setCurrentPath] = useState(['Projects', 'RD Sales']);
+
+  const navigate = useNavigate();
 
   // Sample data for tasks
   const tasks = [
@@ -87,7 +91,9 @@ const Projects = () => {
             </button>
           </div>
           <div className="flex items-center space-x-2">
-            <img src="https://placehold.co/40x40/5A26A2/FFFFFF?text=TU" alt="User Avatar" className="w-10 h-10 rounded-full" />
+            <button onClick={()=> navigate('/profile')}>
+              <img src="https://placehold.co/40x40/5A26A2/FFFFFF?text=TU" alt="User Avatar" className="w-10 h-10 rounded-full" />
+            </button>
             <div className="text-sm">
               <p className="font-semibold">Test User</p>
               <p className="text-gray-400">user@mail</p>
@@ -119,8 +125,8 @@ const Projects = () => {
           {/* Actions */}
           <div className="flex items-center space-x-4">
             <input type="text" placeholder="Search..." className={`w-64 py-2 px-4 rounded-full ${isDarkMode ? 'bg-[#29293e]' : 'bg-gray-200'}`} />
-            <button className="bg-[#595982] flex items-center space-x-2 py-2 px-4 rounded-full text-white font-semibold">
-              ➕ <span>New Task</span>
+            <button onClick={()=> navigate('/projects/new')} className="bg-[#595982] flex items-center space-x-2 py-2 px-4 rounded-full text-white font-semibold">
+              ➕ <span>New Project</span>
             </button>
           </div>
         </div>
