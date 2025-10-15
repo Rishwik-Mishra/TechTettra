@@ -1,234 +1,197 @@
-import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setLogLevel } from 'firebase/firestore';
+import React, { useState } from "react";
 
-// Global variables for Firebase configuration and authentication token.
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+// Google Gemini API setup
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "your-gemini-key";
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" +
+  "AIzaSyAGDyZlqjkgDD_zw_cvhaWnsaDUC3bzNQ";
 
-// Initialize Firebase with the provided configuration.
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-setLogLevel('Debug');
-
-const App = () => {
-  const [isChatOpen, setIsChatOpen] = useState(false);
+export default function ProjectChat() {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [userId, setUserId] = useState(null);
-  const [summary, setSummary] = useState('');
-  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+  const [typing, setTyping] = useState(null);
+  const [summary, setSummary] = useState("");
 
-  // Effect for Firebase authentication and user state management.
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        if (initialAuthToken) {
-          try {
-            await signInWithCustomToken(auth, initialAuthToken);
-          } catch (error) {
-            console.error("Error signing in with custom token:", error);
-            await signInAnonymously(auth);
-          }
-        } else {
-          await signInAnonymously(auth);
-        }
-      }
-    });
+  const AI_COWORKERS = [
+    { name: "Alice", avatar: "https://placehold.co/40x40?text=A", personality: "friendly, helpful, concise" },
+    { name: "Bob", avatar: "https://placehold.co/40x40?text=B", personality: "analytical, detailed, slightly humorous" },
+  ];
 
-    return () => unsubscribeAuth();
-  }, []);
-
-  // Effect for real-time Firestore message updates.
-  useEffect(() => {
-    if (!userId) return;
-
-    const chatPath = `/artifacts/${appId}/public/data/chat`;
-    const q = query(collection(db, chatPath), orderBy("timestamp"));
-
-    const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
-      const fetchedMessages = [];
-      querySnapshot.forEach((doc) => {
-        fetchedMessages.push(doc.data());
+  // Call Gemini API for AI responses
+  async function getAIResponse(prompt, personality) {
+    try {
+      const response = await fetch(GEMINI_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: [
+            {
+              author: "system",
+              content: [
+                {
+                  type: "text",
+                  text: `You are an AI coworker with personality: ${personality}. Reply naturally and conversationally.`
+                },
+              ],
+            },
+            {
+              author: "user",
+              content: [{ type: "text", text: prompt }]
+            }
+          ],
+          temperature: 0.7 + Math.random() * 0.3, // add variation
+          candidate_count: 1,
+          max_output_tokens: 150,
+        }),
       });
-      setMessages(fetchedMessages);
-    }, (error) => {
-      console.error("Error fetching messages:", error);
-    });
+      const data = await response.json();
+      console.log("AI Response raw data:", data); // debug
+      return data?.candidates?.[0]?.content?.[0]?.text || "Sorry, I didn't understand.";
+    } catch (err) {
+      console.error("Error fetching AI response:", err);
+      return "Error generating response.";
+    }
+  }
 
-    return () => unsubscribeSnapshot();
-  }, [userId]);
+  // Summarize entire chat
+  async function summarizeChat() {
+    if (messages.length === 0) return;
 
+    const chatText = messages.map((msg) => `${msg.sender}: ${msg.message}`).join("\n");
+
+    setTyping("Summarizer");
+
+    try {
+      const response = await fetch(GEMINI_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: [
+            {
+              author: "system",
+              content: [
+                {
+                  type: "text",
+                  text: "You are an AI assistant. Summarize the following chat concisely, highlighting key points from each participant."
+                }
+              ]
+            },
+            {
+              author: "user",
+              content: [{ type: "text", text: chatText }]
+            }
+          ],
+          temperature: 0.5,
+          candidate_count: 1,
+          max_output_tokens: 200,
+        }),
+      });
+      const data = await response.json();
+      console.log("Summary raw data:", data); // debug
+      const summaryText = data?.candidates?.[0]?.content?.[0]?.text || "Could not generate summary.";
+      setTyping(null);
+      setSummary(summaryText);
+    } catch (err) {
+      console.error("Error generating summary:", err);
+      setTyping(null);
+      setSummary("Error generating summary.");
+    }
+  }
+
+  // Send user message and trigger AI coworker responses
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (newMessage.trim() === '' || !db || !userId) {
-      return;
+    if (!newMessage.trim()) return;
+
+    setMessages((prev) => [...prev, { id: Date.now(), sender: "You", message: newMessage }]);
+    const messageToSend = newMessage;
+    setNewMessage("");
+
+    for (const coworker of AI_COWORKERS) {
+      setTyping(coworker.name);
+      await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000)); // simulate thinking
+
+      const aiText = await getAIResponse(messageToSend, coworker.personality);
+      setTyping(null);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + Math.random(), sender: coworker.name, avatar: coworker.avatar, message: aiText },
+      ]);
     }
-    try {
-      const chatPath = `/artifacts/${appId}/public/data/chat`;
-      await addDoc(collection(db, chatPath), {
-        text: newMessage,
-        userId: userId,
-        timestamp: serverTimestamp()
-      });
-      setNewMessage('');
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  };
-
-  const handleSummarize = async () => {
-    if (messages.length === 0 || isSummarizing) {
-      return;
-    }
-
-    setIsSummarizing(true);
-    setSummary('');
-
-    try {
-      const chatHistory = messages
-        .map(m => `${m.userId.substring(0, 8)}: ${m.text}`)
-        .join('\n');
-
-      const systemPrompt = "You are a professional chat summarizer. Your task is to provide a concise, single-paragraph summary of the key points and topics discussed in the chat conversation. Use clear and neutral language. Do not invent any information.";
-      const userQuery = `Summarize the following chat conversation:\n\n${chatHistory}`;
-
-      const apiKey = "";
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-      const payload = {
-        contents: [{ parts: [{ text: userQuery }] }],
-        tools: [{ "google_search": {} }],
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-      };
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      const generatedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (generatedText) {
-        setSummary(generatedText);
-      } else {
-        setSummary('Failed to generate a summary. Please try again.');
-      }
-    } catch (error) {
-      console.error("Error summarizing chat:", error);
-      setSummary('An error occurred while generating the summary.');
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
-
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 font-inter">
-      {/* Main Content Area */}
-      <div className="flex flex-col items-center justify-center text-center p-8 bg-white rounded-lg shadow-lg max-w-lg mx-auto">
-        <h1 className="text-4xl font-bold text-gray-800">Team Collaboration</h1>
-        <p className="mt-4 text-gray-600">This is the main content area of your application. Click the chat icon to open the chat sidebar.</p>
-        <p className="mt-2 text-sm text-gray-500">
-          Your User ID (for collaboration):{' '}
-          <span className="font-mono text-gray-700 font-semibold">{userId || 'Loading...'}</span>
-        </p>
+    <div className="flex flex-col h-screen max-w-md mx-auto p-4 border rounded">
+      <h1 className="text-xl font-bold mb-4 text-center">Proj Chat</h1>
+
+      {/* Messages list */}
+      <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex items-start gap-2 p-2 rounded ${
+              msg.sender === "You" ? "bg-blue-100 justify-end" : "bg-gray-100"
+            }`}
+          >
+            {msg.sender !== "You" && msg.avatar && (
+              <img src={msg.avatar} alt={msg.sender} className="w-8 h-8 rounded-full" />
+            )}
+            <div className="max-w-xs">
+              <p className="text-sm font-semibold text-black">{msg.sender}</p>
+              <p className="text-sm text-black">{msg.message}</p>
+            </div>
+          </div>
+        ))}
+
+        {/* Typing indicator */}
+        {typing && (
+          <div className="flex items-start gap-2 p-2 rounded bg-gray-100">
+            <img
+              src={
+                typing === "Summarizer"
+                  ? "https://placehold.co/40x40?text=S"
+                  : AI_COWORKERS.find((a) => a.name === typing)?.avatar
+              }
+              alt={typing}
+              className="w-8 h-8 rounded-full"
+            />
+            <div className="max-w-xs">
+              <p className="text-sm font-semibold text-black">{typing}</p>
+              <p className="text-sm text-black italic">typing...</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Chat Button */}
+      {/* Input box */}
+      <form onSubmit={sendMessage} className="flex gap-2 mb-2">
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          className="flex-1 p-2 border rounded text-black"
+          placeholder="Type a message..."
+        />
+        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
+          Send
+        </button>
+      </form>
+
+      {/* Summarize button */}
       <button
-        onClick={toggleChat}
-        className="fixed bottom-6 right-6 p-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        onClick={summarizeChat}
+        className="mb-2 px-4 py-2 bg-green-600 text-white rounded w-full"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-        </svg>
+        Summarize Chat
       </button>
 
-      {/* Chat Sidebar */}
-      <div
-        className={`fixed right-0 top-0 h-full w-full md:w-96 bg-gray-100 flex flex-col transition-transform duration-300 ease-in-out ${isChatOpen ? 'translate-x-0' : 'translate-x-full'} shadow-lg`}
-      >
-        {/* Chat Header */}
-        <div className="flex-shrink-0 p-4 bg-indigo-600 text-white flex items-center justify-between shadow-md">
-          <h2 className="text-xl font-bold">Project Chat</h2>
-          <button
-            onClick={handleSummarize}
-            className="p-2 text-sm bg-indigo-700 hover:bg-indigo-800 rounded-lg transition-colors duration-200"
-            disabled={isSummarizing || messages.length === 0}
-          >
-            {isSummarizing ? 'Summarizing...' : 'Summarize'}
-          </button>
-          <button
-            onClick={toggleChat}
-            className="p-1 rounded-full hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+      {/* Display summary */}
+      {summary && (
+        <div className="p-2 border rounded bg-yellow-100 text-black">
+          <h2 className="font-semibold mb-1">Chat Summary:</h2>
+          <p className="text-sm">{summary}</p>
         </div>
-
-        {/* Messages Area */}
-        <div className="flex-grow p-4 overflow-y-auto space-y-4">
-          {/* Chat Summary Section - now at the top of the message list */}
-          {summary && (
-            <div className="bg-white p-4 rounded-lg shadow-inner border border-gray-200">
-              <h3 className="text-lg font-bold text-gray-800 mb-2">Chat Summary</h3>
-              <p className="text-gray-700">{summary}</p>
-            </div>
-          )}
-
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`message-bubble p-3 rounded-lg ${
-                message.userId === userId ? 'bg-indigo-500 text-white ml-auto' : 'bg-gray-300 text-gray-800'
-              }`}
-            >
-              {message.userId !== userId && (
-                <p className="font-bold text-sm mb-1">{message.userId.substring(0, 8)}...</p>
-              )}
-              <p>{message.text}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Message Input */}
-        <div className="flex-shrink-0 p-4 bg-white border-t border-gray-300">
-          <form onSubmit={sendMessage} className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="flex-grow p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <button
-              type="submit"
-              className="p-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors duration-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </button>
-          </form>
-        </div>
-      </div>
+      )}
     </div>
   );
-};
-
-export default App;
+}
